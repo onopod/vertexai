@@ -15,19 +15,24 @@ export async function OPTIONS() {
 
 export async function POST(req) {
   if (!process.env.OPENAI_API_KEY) {
-    console.error('OPENAI_API_KEY is not set');
     return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  let message;
+  let body;
   try {
-    ({ message } = await req.json());
-  } catch {}
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
-  if (!message || typeof message !== 'string' || message.trim() === '') {
+  const message = body?.message;
+  if (!message || typeof message !== 'string') {
     return new Response(JSON.stringify({ error: 'Invalid message' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -39,9 +44,11 @@ export async function POST(req) {
     model: openai('gpt-4o-mini'),
     prompt: message,
   });
+
   const response = result.toAIStreamResponse();
   for (const [key, value] of Object.entries(corsHeaders)) {
     response.headers.set(key, value);
   }
   return response;
 }
+
