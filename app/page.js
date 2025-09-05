@@ -14,44 +14,55 @@ export default function Home() {
     const currentIndex = messages.length + 1;
     setInput('');
 
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userMsg.content })
-    });
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg.content })
+      });
+      if (!res.ok || !res.body) {
+        throw new Error(`HTTP ${res.status}`);
+      }
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let done = false;
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      if (value) {
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            const data = line.slice(5).trim();
-            if (data) {
-              try {
-                const json = JSON.parse(data);
-                if (json.type === 'text') {
-                  setMessages(prev => {
-                    const copy = [...prev];
-                    copy[currentIndex] = {
-                      role: 'assistant',
-                      content: copy[currentIndex].content + json.text
-                    };
-                    return copy;
-                  });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (value) {
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              const data = line.slice(5).trim();
+              if (data) {
+                try {
+                  const json = JSON.parse(data);
+                  if (json.type === 'text') {
+                    setMessages(prev => {
+                      const copy = [...prev];
+                      copy[currentIndex] = {
+                        role: 'assistant',
+                        content: copy[currentIndex].content + json.text
+                      };
+                      return copy;
+                    });
+                  }
+                } catch (err) {
+                  // ignore non-JSON lines
                 }
-              } catch (err) {
-                // ignore non-JSON lines
               }
             }
           }
         }
       }
+    } catch (err) {
+      setMessages(prev => {
+        const copy = [...prev];
+        copy[currentIndex] = { role: 'assistant', content: `エラーが発生しました: ${err.message}` };
+        return copy;
+      });
     }
   }
 
