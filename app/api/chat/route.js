@@ -3,11 +3,11 @@ import { createOpenAI } from '@ai-sdk/openai';
 
 export const runtime = 'edge';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, HEAD',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
@@ -58,11 +58,14 @@ export async function POST(req) {
 }
 
 export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const message = searchParams.get('message');
+  const message = req.nextUrl.searchParams.get('message');
 
   const errorResponse = await validateEnvAndMessage(message);
   if (errorResponse) return errorResponse;
 
   return handleRequest(message);
+}
+
+export async function HEAD() {
+  return new Response(null, { status: 204, headers: corsHeaders });
 }
